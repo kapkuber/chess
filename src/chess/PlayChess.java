@@ -6,7 +6,7 @@ import java.util.Scanner;
 /**
  * The PlayChess class is the main class that runs the game and takes in user input to play the game.
  * @author Aarav Makadia
- * @author Kuber Kupuriya
+ * @author Kuber Kapuriya
  *
  */
 public class PlayChess {
