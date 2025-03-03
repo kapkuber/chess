@@ -12,7 +12,7 @@ public class Chess {
 
     public static ReturnPlay play(String move) {
         ReturnPlay returnPlay = new ReturnPlay();
-
+    
         String[] inputstr_as_arr = move.split(" ");
         if (inputstr_as_arr.length < 2) {
             if ("resign".equals(move)) {
@@ -24,37 +24,54 @@ public class Chess {
             returnPlay.piecesOnBoard = getBoardAsList();
             return returnPlay;
         }
-        
+    
         String oldPos = inputstr_as_arr[0];
         String newPos = inputstr_as_arr[1];
         String promotion = inputstr_as_arr.length > 2 ? inputstr_as_arr[2] : null;
-
-        if ("draw?".equals(promotion)) {
-            returnPlay.message = ReturnPlay.Message.DRAW;
-            returnPlay.piecesOnBoard = getBoardAsList();
-            return returnPlay;
-        }
-        
+    
         Piece piece_oldPos = board.get(oldPos);
-
+    
         if ((is_white_move && piece_oldPos.getvalue().charAt(0) == 'w') ||
             (!is_white_move && piece_oldPos.getvalue().charAt(0) == 'b')) {
-
+    
             boolean is_move_valid = piece_oldPos.isMoveValid(oldPos, newPos);
             if (is_move_valid) {
-                piece_oldPos.move(oldPos, newPos, promotion != null ? promotion.charAt(0) : '0');
+                // Perform the move FIRST
+                piece_oldPos.move(oldPos, newPos, promotion != null && !"draw?".equals(promotion) ? promotion.charAt(0) : '0');
                 piece_oldPos.sethasMoved(true);
+    
+                // Check if the move ends with "draw?"
+                if ("draw?".equals(promotion)) {
+                    returnPlay.message = ReturnPlay.Message.DRAW;
+                    returnPlay.piecesOnBoard = getBoardAsList();
+                    return returnPlay;  // End game immediately
+                }
+    
+                // Check if the move resulted in checkmate (king capture)
+                if (isKingCaptured(!is_white_move)) {
+                    returnPlay.message = is_white_move ? ReturnPlay.Message.CHECKMATE_WHITE_WINS : ReturnPlay.Message.CHECKMATE_BLACK_WINS;
+                    returnPlay.piecesOnBoard = getBoardAsList();
+                    return returnPlay;  // End game immediately
+                }
+    
+                // Check if the enemy king is under check
+                if (isKingInCheck(!is_white_move)) {
+                    returnPlay.message = ReturnPlay.Message.CHECK;
+                }
+    
+                // Swap turn after successful move (even if it's a check)
                 is_white_move = !is_white_move;
-
+    
                 returnPlay.piecesOnBoard = getBoardAsList();
                 return returnPlay;
             }
         }
+    
         returnPlay.message = ReturnPlay.Message.ILLEGAL_MOVE;
         returnPlay.piecesOnBoard = getBoardAsList();
         return returnPlay;
-    }
-
+    }    
+    
     public static ReturnPlay start() {
         initboard();
         is_white_move = true;
@@ -79,7 +96,46 @@ public class Chess {
             }
         }
     }
+
+    private static boolean isKingCaptured(boolean isWhiteKing) {
+        String kingSymbol = isWhiteKing ? "wK" : "bK";
+        for (Piece piece : board.values()) {
+            if (piece != null && kingSymbol.equals(piece.getvalue())) {
+                return false;  // King still exists
+            }
+        }
+        return true;  // King is missing = checkmate!
+    }
+
+    private static boolean isKingInCheck(boolean isWhiteKing) {
+        String kingPos = null;
+        String kingSymbol = isWhiteKing ? "wK" : "bK";
     
+        // Find the king's current position
+        for (Map.Entry<String, Piece> entry : board.entrySet()) {
+            if (kingSymbol.equals(entry.getValue().getvalue())) {
+                kingPos = entry.getKey();
+                break;
+            }
+        }
+    
+        if (kingPos == null) {
+            return false;  // Shouldn't happen normally
+        }
+    
+        // Check if any opposing piece can attack the king's position
+        for (Map.Entry<String, Piece> entry : board.entrySet()) {
+            Piece piece = entry.getValue();
+            if (piece instanceof EmptySquare) {
+                continue;
+            }
+            boolean isEnemy = isWhiteKing ? piece.getvalue().charAt(0) == 'b' : piece.getvalue().charAt(0) == 'w';
+            if (isEnemy && piece.isMoveValid(entry.getKey(), kingPos)) {
+                return true;  // King is in check
+            }
+        }
+        return false;
+    }    
 
     private static void addPieces(String filerank, int num, char color) {
         String prefix = color == 'b' ? "b" : "w";
