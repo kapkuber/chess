@@ -36,32 +36,42 @@ public class Chess {
     
             boolean is_move_valid = piece_oldPos.isMoveValid(oldPos, newPos);
             if (is_move_valid) {
-                // Perform the move FIRST
+                // Simulate the move temporarily
+                Piece piece_at_newPos = board.get(newPos);  // Save the piece at destination (might be captured)
                 piece_oldPos.move(oldPos, newPos, promotion != null && !"draw?".equals(promotion) ? promotion.charAt(0) : '0');
+    
+                // Check if the move puts own king in check
+                boolean inCheckAfterMove = isKingInCheck(is_white_move);
+    
+                // Revert the move if illegal (restore board state)
+                if (inCheckAfterMove) {
+                    board.put(oldPos, piece_oldPos);  // Put the piece back
+                    board.put(newPos, piece_at_newPos);  // Put captured piece (or empty square) back
+                    returnPlay.message = ReturnPlay.Message.ILLEGAL_MOVE;  // Self-check is illegal
+                    returnPlay.piecesOnBoard = getBoardAsList();
+                    return returnPlay;
+                }
+    
+                // Move is legal, proceed with game
                 piece_oldPos.sethasMoved(true);
     
-                // Check if the move ends with "draw?"
                 if ("draw?".equals(promotion)) {
                     returnPlay.message = ReturnPlay.Message.DRAW;
                     returnPlay.piecesOnBoard = getBoardAsList();
-                    return returnPlay;  // End game immediately
+                    return returnPlay;
                 }
     
-                // Check if the move resulted in checkmate (king capture)
                 if (isKingCaptured(!is_white_move)) {
                     returnPlay.message = is_white_move ? ReturnPlay.Message.CHECKMATE_WHITE_WINS : ReturnPlay.Message.CHECKMATE_BLACK_WINS;
                     returnPlay.piecesOnBoard = getBoardAsList();
-                    return returnPlay;  // End game immediately
+                    return returnPlay;
                 }
     
-                // Check if the enemy king is under check
                 if (isKingInCheck(!is_white_move)) {
                     returnPlay.message = ReturnPlay.Message.CHECK;
                 }
     
-                // Swap turn after successful move (even if it's a check)
                 is_white_move = !is_white_move;
-    
                 returnPlay.piecesOnBoard = getBoardAsList();
                 return returnPlay;
             }
@@ -70,7 +80,8 @@ public class Chess {
         returnPlay.message = ReturnPlay.Message.ILLEGAL_MOVE;
         returnPlay.piecesOnBoard = getBoardAsList();
         return returnPlay;
-    }    
+    }
+        
     
     public static ReturnPlay start() {
         initboard();
